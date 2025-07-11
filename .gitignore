@@ -208,3 +208,8 @@ __marimo__/
 
 # venv
 /power/
+
+# MLFlow
+/mlartifacts/
+/mlruns/
+/inference_model/

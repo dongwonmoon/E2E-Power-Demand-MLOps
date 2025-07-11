@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/786785356010456670/af3cf4da2b7b45df8a787dfe75cf2bd8/artifacts
+end_time: 1752211728960
+entry_point_name: ''
+experiment_id: '786785356010456670'
+lifecycle_stage: active
+run_id: af3cf4da2b7b45df8a787dfe75cf2bd8
+run_name: LSTMModel
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752210768820
+status: 3
+tags: []
+user_id: anseh

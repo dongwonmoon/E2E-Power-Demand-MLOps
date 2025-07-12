@@ -174,8 +174,26 @@ if not display_df.empty:
         else:
             st.metric(label="🔮 최종 예측 수요량", value="N/A")
 
-    chart_data = display_df.set_index("date")[["demand", "predicted_demand"]]
-    st.line_chart(chart_data)
+    # Anomaly Detection
+    chart_data = display_df.dropna(subset=['predicted_demand']).copy()
+    chart_data['error'] = chart_data['demand'] - chart_data['predicted_demand']
+    chart_data['anomaly'] = chart_data['error'].abs() > (chart_data['demand'] * 0.10) # 10% threshold
+
+    # Display warning for anomalies
+    anomalies = chart_data[chart_data['anomaly']]
+    if not anomalies.empty:
+        st.warning("🚨 이상치 감지! 예측값과 실제값의 차이가 10% 이상입니다.")
+        st.dataframe(anomalies[['date', 'demand', 'predicted_demand', 'error']].set_index('date'))
+
+    # Charting
+    chart_data_to_plot = chart_data.set_index("date")[["demand", "predicted_demand"]]
+    st.line_chart(chart_data_to_plot)
+
+    # Highlight anomalies on the chart
+    if not anomalies.empty:
+        anomaly_points = anomalies.set_index('date')[['demand']]
+        anomaly_points.columns = ['anomaly']
+        st.line_chart(pd.concat([chart_data_to_plot, anomaly_points], axis=1))
 
 st.markdown("---")
 

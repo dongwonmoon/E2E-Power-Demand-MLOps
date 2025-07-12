@@ -6,7 +6,8 @@ This project implements an end-to-end MLOps pipeline for power demand forecastin
 
 ```
 E2E-Power-Demand-MLOps/
-├── config/             # Configuration files
+├── config/             # Configuration files (updated structure)
+│   └── config.yml
 ├── data/               # Raw and processed data
 ├── mlartifacts/        # MLflow artifacts (local storage)
 ├── mlruns/             # MLflow runs (local storage)
@@ -19,11 +20,10 @@ E2E-Power-Demand-MLOps/
 ├── streaming/          # Scripts for Kafka-based real-time data streaming
 │   └── producer.py
 ├── src/                # Source code for modules
-│   ├── consumer/       # Kafka consumer logic
-│   ├── data/           # Data processing utilities
-│   ├── model/          # LSTM model definition and wrapper
+│   ├── data/           # Data processing utilities (DataProcessor)
+│   ├── model/          # LSTM model definition and wrapper (LSTMWrapper)
 │   └── utils/          # General utilities (config loader, MLflow loader)
-├── scaler.pkl          # Saved MinMaxScaler (used by inference)
+├── scaler.pkl          # Saved MinMaxScaler (used during training and logged to MLflow)
 ├── .gitignore
 ├── docker-compose.yml  # Docker Compose for services like Kafka, MLflow
 └── README.md
@@ -31,13 +31,15 @@ E2E-Power-Demand-MLOps/
 
 ## Features
 
-*   **Data Ingestion & Preprocessing:** Combines raw power demand data, cleans it, and splits it into training and streaming datasets.
+*   **Centralized Data Processing:** All data preprocessing (scaling, differencing) is now encapsulated within `src/data/processor.py`, ensuring consistency across training, inference, and dashboard.
 *   **LSTM Model Training:** Trains a Long Short-Term Memory (LSTM) neural network for time series forecasting.
 *   **MLflow Integration:**
     *   Tracks experiments (parameters, metrics, artifacts).
     *   Manages model versions in the MLflow Model Registry.
     *   Facilitates model deployment by promoting models to 'Production' (via Aliases).
-*   **Real-time Inference:** Consumes streaming data from Kafka, performs predictions using the deployed model, and outputs results.
+    *   The trained model and its associated `DataProcessor` (scaler) are logged together using `LSTMWrapper` for seamless inference.
+*   **Real-time Inference:** Consumes streaming data from Kafka, performs predictions using the deployed model (which internally handles data preprocessing), and outputs results.
+*   **Streamlit Dashboard:** A real-time dashboard visualizes actual and predicted power demand, including future forecasts.
 *   **Scalability:** Designed with modular components for potential scaling with Docker/Kubernetes and orchestration tools.
 
 ## Technologies Used
@@ -48,7 +50,8 @@ E2E-Power-Demand-MLOps/
 *   **Apache Kafka:** For real-time data streaming.
 *   **scikit-learn:** For data scaling (MinMaxScaler).
 *   **pandas, numpy:** For data manipulation.
-*   **YAML:** For configuration management.
+*   **PyYAML:** For configuration management.
+*   **Streamlit:** For building interactive web applications/dashboards.
 
 ## Getting Started
 
@@ -77,9 +80,8 @@ E2E-Power-Demand-MLOps/
 
 3.  **Install dependencies:**
     ```bash
-    pip install -r requirements.txt # You might need to create this file based on your environment
+    pip install -r requirements.txt
     ```
-    *(Note: A `requirements.txt` file is not provided in the initial context. You may need to generate one using `pip freeze > requirements.txt` after installing necessary libraries like `torch`, `mlflow`, `pandas`, `scikit-learn`, `kafka-python`, `pyyaml`, `tqdm`.)*
 
 4.  **Start Kafka and MLflow services using Docker Compose:**
     ```bash
@@ -89,43 +91,49 @@ E2E-Power-Demand-MLOps/
 
 ## Running the MLOps Pipeline
 
-Execute the scripts in the `pipelines/` directory in the following order:
+Execute the scripts in the `pipelines/` directory in the following order. Ensure you have updated the `config/config.yml` file if you have specific environment settings.
 
 1.  **Data Processing:**
-    Combines raw data, preprocesses it, and splits it into training and streaming datasets.
+    Combines raw data, preprocesses it, and splits it into training and streaming datasets. This step now uses the centralized `DataProcessor`.
     ```bash
     python pipelines/01_process_data.py
     ```
 
 2.  **Model Training:**
-    Trains the LSTM model and logs experiments, metrics, and the model to MLflow.
+    Trains the LSTM model, logs experiments, metrics, and the model (including the `DataProcessor`'s scaler via `LSTMWrapper`) to MLflow.
     ```bash
     python pipelines/02_train_model.py
     ```
 
 3.  **Model Deployment (Prepare for Inference):**
-    After training, go to the MLflow UI (`http://localhost:5000`), navigate to the `lstm_power_demand` model, select the desired version, and add the `prod` alias to it. Then, run this script to download the 'prod' aliased model locally for fast inference.
+    After training, go to the MLflow UI (`http://localhost:5000`), navigate to the `lstm_power_demand` model, select the desired version, and add the `prod` alias to it. Then, run this script to download the 'prod' aliased model locally for fast inference. This downloaded model (`inference_model` directory) now contains the `LSTMWrapper` which encapsulates the necessary data preprocessing logic.
     ```bash
     python pipelines/03_deploy_model.py
     ```
 
 4.  **Start Kafka Producer (in a separate terminal):**
-    This script simulates real-time data streaming to Kafka.
+    This script simulates real-time data streaming to Kafka. It now adds sequential time information to each data point for better visualization on the dashboard.
     ```bash
     python streaming/producer.py
     ```
 
 5.  **Run Real-time Inference (in another separate terminal):**
-    Consumes data from Kafka and performs predictions using the locally deployed model.
+    Consumes data from Kafka and performs predictions using the locally deployed model. The `LSTMWrapper` handles all data transformations internally.
     ```bash
     python pipelines/04_run_inference.py
     ```
 
+6.  **Start Streamlit Dashboard (in yet another separate terminal):**
+    Visualizes real-time data and predictions.
+    ```bash
+    streamlit run dashboard.py
+    ```
+
 ## TODOs & Future Enhancements
 
-*   **Streamlit Dashboard:** Develop a Streamlit application for visualizing real-time predictions and model performance.
 *   **Apache Airflow Integration:** Orchestrate the entire MLOps pipeline (data processing, training, deployment) using Airflow for automated workflows.
 *   **Model Monitoring:** Implement monitoring for model drift and performance degradation.
 *   **CI/CD Pipeline:** Set up Continuous Integration/Continuous Deployment for automated testing and deployment.
 *   **Hyperparameter Tuning:** Integrate hyperparameter optimization (e.g., with Optuna or Hyperopt).
 *   **Error Handling & Logging:** Enhance robust error handling and comprehensive logging across all components.
+*   **Advanced Feature Engineering:** Explore adding more features (e.g., day of week, month, holidays) to improve model accuracy.
